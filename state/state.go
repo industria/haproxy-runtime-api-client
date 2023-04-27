@@ -1,3 +1,4 @@
+// package for working with server state
 package state
 
 import (
@@ -6,8 +7,6 @@ import (
 	"fmt"
 	"strconv"
 )
-
-// package for working with server state
 
 type OperationalState int
 
@@ -106,7 +105,7 @@ func ParseShowServersState(response []byte) ([]ServerState, error) {
 	return states, nil
 }
 
-// map the elements from a response line to the ServerState struct
+// map the elements from a response line to the ServerState struct. If the elements can not be mapped it will panic.
 func stateElementsToServerState(elements []string) ServerState {
 	return ServerState{
 		BeId:                   atoi(elements[0]),

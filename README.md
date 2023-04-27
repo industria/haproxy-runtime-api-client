@@ -1,8 +1,12 @@
 # haproxy-runtime-api-client
 
-Go package for accessing the HA-Proxy Runtime API (stats socket)
+Go package for accessing the HA-Proxy Runtime API (stats socket) 
 
 The basic functionality handles sending a raw commands and getting the raw response back on command at a time.
+
+## Versions
+
+This project has only been tested against HA-Proxy version 2.6.10
 
 ## maintenance state
 

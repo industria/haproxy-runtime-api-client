@@ -64,3 +64,17 @@ func TestShowServersState(t *testing.T) {
 	}
 
 }
+
+func TestShowStats(t *testing.T) {
+	client, err := NewClient("tcp://localhost:9999")
+	if err != nil {
+		t.Fatalf("unable to create client: %v", err)
+	}
+
+	resp, err := client.ShowStat()
+	if err != nil {
+		t.Fatalf("failed show stat : %v", err)
+	}
+	log.Printf("%+v", resp)
+
+}

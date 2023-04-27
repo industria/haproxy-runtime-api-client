@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/industria/haproxy-runtime-api-client/stat"
 	"github.com/industria/haproxy-runtime-api-client/state"
 )
 
@@ -71,7 +72,7 @@ const (
 	ServerStateMaint ServerState = "maint"
 )
 
-// execuie a server state change command
+// execute a server state change command
 // set server <backend>/<server> state [ ready | drain | maint ]
 func (rc *RuntimeClient) SetServerState(backend, server string, state ServerState) error {
 	command := fmt.Sprintf("set server %s/%s state %s", backend, server, state)
@@ -88,15 +89,23 @@ func (rc *RuntimeClient) SetServerState(backend, server string, state ServerStat
 	return nil
 }
 
+// get the server state for all backend
 // show servers state [<backend>]
 func (rc *RuntimeClient) ShowServersState() ([]state.ServerState, error) {
-	//command := fmt.Sprintf("set server %s/%s state %s", backend, server, state)
-	command := fmt.Sprintf("show servers state")
-
+	command := "show servers state"
 	resp, err := rc.Execute(command)
 	if err != nil {
 		return nil, err
 	}
-
 	return state.ParseShowServersState(resp)
+}
+
+// get HA-proxy stat using the command show stat
+func (rc *RuntimeClient) ShowStat() ([]stat.StatCounters, error) {
+	command := "show stat"
+	resp, err := rc.Execute(command)
+	if err != nil {
+		return nil, err
+	}
+	return stat.ParseShowStat(resp)
 }
