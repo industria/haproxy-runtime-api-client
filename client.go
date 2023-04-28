@@ -1,11 +1,13 @@
 package haproxy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/industria/haproxy-runtime-api-client/stat"
 	"github.com/industria/haproxy-runtime-api-client/state"
@@ -100,7 +102,7 @@ func (rc *RuntimeClient) ShowServersState() ([]state.ServerState, error) {
 	return state.ParseShowServersState(resp)
 }
 
-// get HA-proxy stat using the command show stat
+// get stat counters using the command show stat
 func (rc *RuntimeClient) ShowStat() ([]stat.StatCounters, error) {
 	command := "show stat"
 	resp, err := rc.Execute(command)
@@ -108,4 +110,57 @@ func (rc *RuntimeClient) ShowStat() ([]stat.StatCounters, error) {
 		return nil, err
 	}
 	return stat.ParseShowStat(resp)
+}
+
+//	place server into maintenance state with a previous drain operation
+//
+// this funcation will place a server into maintenance state by first
+// placing the server in drain state waiting for the currenct conntations
+// going to 0 or a timeout is reached and the server is forced into
+// maintenance state regardless of the number of connections.
+// a context with timeout should be used to avoid waiting forever for the draining to complete
+// the draining can take a long time if there is an active persistent connection
+func (rc *RuntimeClient) ServerMaintenance(ctx context.Context, backend, server string) error {
+	// start by setting the backend server to draining
+	if err := rc.SetServerState(backend, server, ServerStateDrain); err != nil {
+		return err
+	}
+
+	// time for allowing a pause between checking if draining the backend server is complete
+	timer := time.NewTimer(time.Millisecond * 10)
+	defer timer.Stop()
+
+	// check for complete or timeout
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("timeout - force the server to maint state")
+			return rc.SetServerState(backend, server, ServerStateMaint)
+		case <-timer.C:
+			completed, err := rc.drainingComplet(backend, server)
+			if err != nil {
+				return err
+			}
+			if completed {
+				return rc.SetServerState(backend, server, ServerStateMaint)
+			}
+			timer.Reset(time.Millisecond * 10)
+		}
+	}
+}
+
+func (rc *RuntimeClient) drainingComplet(backend, server string) (bool, error) {
+	cs, err := rc.ShowStat()
+	if err != nil {
+		return false, err
+	}
+
+	for _, c := range cs {
+		if c.PxName == backend && c.SvName == server {
+			log.Printf("connections for %s/%s %d", backend, server, c.Scur)
+			return c.Scur == 0, nil
+
+		}
+	}
+	return false, nil
 }

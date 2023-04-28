@@ -1,6 +1,7 @@
 package haproxy
 
 import (
+	"context"
 	"log"
 	"testing"
 	"time"
@@ -76,5 +77,25 @@ func TestShowStats(t *testing.T) {
 		t.Fatalf("failed show stat : %v", err)
 	}
 	log.Printf("%+v", resp)
+
+}
+
+func TestServerMaintenance(t *testing.T) {
+	client, err := NewClient("tcp://localhost:9999")
+	if err != nil {
+		t.Fatalf("unable to create client: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1000)
+	defer cancel()
+
+	client.ServerMaintenance(ctx, "indexws", "iws01")
+
+	time.Sleep(10 * time.Second) // hang on for a bit before setting it to ready
+
+	err = client.SetServerState("indexws", "iws01", ServerStateReady)
+	if err != nil {
+		t.Fatalf("maint failed : %v", err)
+	}
 
 }
